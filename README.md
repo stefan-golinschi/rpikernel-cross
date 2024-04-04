@@ -69,8 +69,22 @@ docker run -it --rm -v $PWD/store:/work:rw rpi-linux:ubuntu_23.04
 
 ### Set Env
 
+For reference: [Official RPi Documentation on Linux Kernel](https://www.raspberrypi.com/documentation/computers/linux_kernel.html).
+
 ```bash
+# For Raspberry Pi 3, 3+, 4, 400 and Zero 2 W, and Raspberry Pi Compute Modules 3, 3+ and 4:
+# export KERNEL=kernel8
+# For Raspberry Pi 5:
+# export KERNEL=kernel_2712
 export KERNEL=kernel7
+
+# For 64-bit configs:
+# export ARCH=arm64
+# exportCROSS_COMPILE=aarch64-linux-gnu-
+#
+# For 32-bit configs:
+# export ARCH=arm
+# export CROSS_COMPILE=arm-linux-gnueabihf-
 export ARCH=arm
 export CROSS_COMPILE=arm-linux-gnueabihf-
 ```
