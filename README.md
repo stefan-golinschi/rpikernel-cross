@@ -1,26 +1,31 @@
 # Crosscompiled build of RPi Kernel
 
-## Get the right kernel version
+ - uname `Linux raspberrypi 6.6.25-v8+ #1751 SMP PREEMPT Fri Apr  5 15:18:12 BST 2024 aarch64 GNU/Linux`
 
-On the RaspberryPi, you need to find the exact commit hash of the kernel source code that was used to produce the Linux image.
+## Get the kernel commit hash
 
-```bash
-zgrep '* firmware as of' /usr/share/doc/raspberrypi-bootloader/changelog.Debian.gz | head -1
-
-# On this rpi, the output is this:
-# * firmware as of 4c6c5389d55d419e38f00116829d5a0f30c7bfbf
-```
-
-Now, you need to download the Linux source code from git using the commit hash as reference. The source code is located here: `https://github.com/raspberrypi/linux`.
+On RaspberryPi:
 
 ```bash
-mkdir store/
-cd store/
-COMMIT_HASH=4c6c5389d55d419e38f00116829d5a0f30c7bfbf \
-VERSION="6.1.19"
-wget https://github.com/raspberrypi/linux/archive/${COMMIT_HASH}.zip -O linux-${VERSION}.zip
-unzip linux-${VERSION}.zip
+JUST_CHECK=1 rpi-update
+FW_REV:269e5ea259b947eb038fefbc6c7eba23bce54df6
+BOOTLOADER_REV:61023cbd32725a07e094f9b2d01df302f4ddabba
+
+FW_REV=$(JUST_CHECK=1 rpi-update|grep FW_REV|cut -d ":" -f 2)
+GIT_HASH=$(wget -qO- https://raw.githubusercontent.com/raspberrypi/rpi-firmware/$FW_REV/git_hash)
+
+echo $GIT_HASH
+ae8a4ce56fcac6cfd2bf9c3bbbdd939725c1ae45
 ```
+
+On build host:
+
+```bash
+export GIT_HASH=ae8a4ce56fcac6cfd2bf9c3bbbdd939725c1ae45
+wget https://github.com/raspberrypi/linux/archive/${GIT_HASH}.zip -O linux-${GIT_HASH}.zip
+cd linux-${GIT_HASH}
+```
+
 
 ## Get the kernel config
 Now you need the original config file from the RaspberryPi.
@@ -42,77 +47,24 @@ After this, the directory structure will look like this:
 └── store
     ├── config-rpi.txt
     ├── linux-6.1.19.zip
-    └── linux-6449a0ba6843fe70523eeb7855984054f36f6d24
+    └── linux-<commit_hash>
 ```
 
 Now copy the config to the linux kernel source code root folder, renaming to `.config`.
 
 ```bash
-cp store/config-rpi.txt store/linux-6449a0ba6843fe70523eeb7855984054f36f6d24/.config
+cp store/config-rpi.txt store/linux-<commit_hash>/.config
 ```
 
-## Start building and customizing the Linux kernel
-
-### Enter the docker development environment
-
-#### Build the Dockerfile
-
+## Build
 ```bash
+
 docker build -t rpi-linux:ubuntu_23.04 .
-```
-
-#### Start a container
-
-```bash
 docker run -it --rm -v $PWD/store:/work:rw rpi-linux:ubuntu_23.04
-```
 
-### Set Env
-
-For reference: [Official RPi Documentation on Linux Kernel](https://www.raspberrypi.com/documentation/computers/linux_kernel.html).
-
-```bash
-# For Raspberry Pi 3, 3+, 4, 400 and Zero 2 W, and Raspberry Pi Compute Modules 3, 3+ and 4:
-# export KERNEL=kernel8
-# For Raspberry Pi 5:
-# export KERNEL=kernel_2712
-export KERNEL=kernel7
-
-# For 64-bit configs:
-# export ARCH=arm64
-# exportCROSS_COMPILE=aarch64-linux-gnu-
-#
-# For 32-bit configs:
-# export ARCH=arm
-# export CROSS_COMPILE=arm-linux-gnueabihf-
-export ARCH=arm
-export CROSS_COMPILE=arm-linux-gnueabihf-
-```
-
-### Menuconfig
-
-```
+export KERNEL=kernel8
+export ARCH=arm64
+export CROSS_COMPILE=aarch64-linux-gnu-
 make menuconfig
 make -j$(nproc)
-```
-
-
-## Test the new modules
-
-First, copy the modules from the host to the Raspberry Pi.
-
-```bash
-scp \
-./drivers/input/touchscreen/ad7879-i2c.ko \
-./drivers/input/touchscreen/ad7879.ko \
-pi@<rpi ip address>:/home/pi
-```
-
-After that, load the module and their dependencies:
-
-```bash
-modprobe i2c-gpio
-modprobe regman-i2c
-insmod /home/pi/ad7879.ko 
-insmod /home/pi/ad7879-i2c.ko 
 ```
